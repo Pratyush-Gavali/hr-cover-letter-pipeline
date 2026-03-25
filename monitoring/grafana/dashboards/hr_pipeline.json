@@ -1,0 +1,461 @@
+{
+  "title": "HR Pipeline — Talent Search Copilot",
+  "uid": "hr-pipeline-v1",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "tags": ["hr-pipeline"],
+  "timezone": "browser",
+  "panels": [
+
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Overview",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Ingestions (1h)",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "increase(hr_pipeline_ingestion_total{status='success'}[1h])",
+        "legendFormat": ""
+      }],
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "green", "mode": "fixed" } } }
+    },
+
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "HR Queries (1h)",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "increase(hr_pipeline_hr_queries_total{status='success'}[1h])",
+        "legendFormat": ""
+      }],
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "blue", "mode": "fixed" } } }
+    },
+
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Ingestion error rate",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "rate(hr_pipeline_ingestion_total{status='error'}[5m]) / rate(hr_pipeline_ingestion_total[5m])",
+        "legendFormat": ""
+      }],
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "0%",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 0.02 },
+            { "color": "red", "value": 0.05 }
+          ]}
+        }
+      }
+    },
+
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "P95 ingestion latency",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.95, rate(hr_pipeline_ingestion_duration_seconds_bucket[5m]))",
+        "legendFormat": ""
+      }],
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0s",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 10 },
+            { "color": "red", "value": 20 }
+          ]}
+        }
+      }
+    },
+
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "P90 query latency",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.90, rate(hr_pipeline_hr_query_duration_seconds_bucket[5m]))",
+        "legendFormat": ""
+      }],
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0s",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 5 },
+            { "color": "red", "value": 10 }
+          ]}
+        }
+      }
+    },
+
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Total indexed applicants",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(hr_pipeline_active_applicants)",
+        "legendFormat": ""
+      }],
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "purple", "mode": "fixed" } } }
+    },
+
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Ingestion pipeline",
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Ingestion rate (success vs error)",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "rate(hr_pipeline_ingestion_total{status='success'}[2m])",
+          "legendFormat": "success"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "rate(hr_pipeline_ingestion_total{status='error'}[2m])",
+          "legendFormat": "error"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "custom": { "lineWidth": 2 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "error" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "success" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Ingestion latency percentiles",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.50, rate(hr_pipeline_ingestion_duration_seconds_bucket[5m]))",
+          "legendFormat": "P50"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, rate(hr_pipeline_ingestion_duration_seconds_bucket[5m]))",
+          "legendFormat": "P95"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.99, rate(hr_pipeline_ingestion_duration_seconds_bucket[5m]))",
+          "legendFormat": "P99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2 } } }
+    },
+
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Chunks extracted per letter (avg)",
+      "gridPos": { "x": 0, "y": 14, "w": 8, "h": 7 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.50, rate(hr_pipeline_chunk_count_bucket[5m]))",
+        "legendFormat": "median chunks"
+      }],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2 } } }
+    },
+
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "PII entities redacted (avg per letter)",
+      "gridPos": { "x": 8, "y": 14, "w": 8, "h": 7 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.50, rate(hr_pipeline_pii_entities_redacted_bucket[5m]))",
+        "legendFormat": "median entities"
+      }],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2 } } }
+    },
+
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Qdrant upsert latency (P99)",
+      "gridPos": { "x": 16, "y": 14, "w": 8, "h": 7 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.99, rate(hr_pipeline_qdrant_upsert_duration_seconds_bucket[5m]))",
+        "legendFormat": "P99"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2 },
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 0.1 },
+            { "color": "red", "value": 0.5 }
+          ]}
+        }
+      }
+    },
+
+    {
+      "id": 20,
+      "type": "row",
+      "title": "AI detection",
+      "gridPos": { "x": 0, "y": 21, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "AI probability — running median",
+      "description": "Median P(AI-written) of recently ingested letters. A rising trend indicates increased AI-generated submissions.",
+      "gridPos": { "x": 0, "y": 22, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.50, rate(hr_pipeline_ai_probability_bucket[10m]))",
+          "legendFormat": "P50 (median)"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.90, rate(hr_pipeline_ai_probability_bucket[10m]))",
+          "legendFormat": "P90"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0, "max": 1,
+          "custom": { "lineWidth": 2 }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "P90" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "AI detection latency",
+      "gridPos": { "x": 12, "y": 22, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.50, rate(hr_pipeline_ai_detection_duration_seconds_bucket[5m]))",
+          "legendFormat": "P50"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, rate(hr_pipeline_ai_detection_duration_seconds_bucket[5m]))",
+          "legendFormat": "P95"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2 } } }
+    },
+
+    {
+      "id": 30,
+      "type": "row",
+      "title": "Query pipeline / RAG",
+      "gridPos": { "x": 0, "y": 30, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "LangGraph stage latency (P95)",
+      "description": "Per-stage breakdown of the query pipeline. Rerank (DTW) and synthesise (LLM) are typically the slowest.",
+      "gridPos": { "x": 0, "y": 31, "w": 16, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, rate(hr_pipeline_stage_duration_seconds_bucket{stage='query_parse'}[5m]))",
+          "legendFormat": "query_parse"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, rate(hr_pipeline_stage_duration_seconds_bucket{stage='retrieve'}[5m]))",
+          "legendFormat": "retrieve"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, rate(hr_pipeline_stage_duration_seconds_bucket{stage='rerank'}[5m]))",
+          "legendFormat": "rerank (DTW)"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, rate(hr_pipeline_stage_duration_seconds_bucket{stage='synthesise'}[5m]))",
+          "legendFormat": "synthesise (LLM)"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2 } } }
+    },
+
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Candidates retrieved vs reranked",
+      "gridPos": { "x": 16, "y": 31, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.50, rate(hr_pipeline_candidates_retrieved_bucket[5m]))",
+          "legendFormat": "retrieved (median)"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2 } } }
+    },
+
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "DTW composite score — top candidates",
+      "description": "Distribution of final match scores returned to HR. Higher = better JD alignment.",
+      "gridPos": { "x": 0, "y": 39, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.25, rate(hr_pipeline_dtw_composite_score_bucket[10m]))",
+          "legendFormat": "P25"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.50, rate(hr_pipeline_dtw_composite_score_bucket[10m]))",
+          "legendFormat": "P50 (median)"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.90, rate(hr_pipeline_dtw_composite_score_bucket[10m]))",
+          "legendFormat": "P90"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0, "max": 1,
+          "custom": { "lineWidth": 2 }
+        }
+      }
+    },
+
+    {
+      "id": 34,
+      "type": "timeseries",
+      "title": "LLM response size (approx tokens)",
+      "gridPos": { "x": 12, "y": 39, "w": 12, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.50, rate(hr_pipeline_llm_response_tokens_bucket[5m]))",
+        "legendFormat": "median tokens"
+      }],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2 } } }
+    },
+
+    {
+      "id": 40,
+      "type": "row",
+      "title": "ML model",
+      "gridPos": { "x": 0, "y": 47, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "BGE-M3 inference latency by call site",
+      "description": "rerank is the most expensive since it embeds multiple chunks per applicant.",
+      "gridPos": { "x": 0, "y": 48, "w": 16, "h": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, rate(hr_pipeline_bge_inference_duration_seconds_bucket{call_site='ingestion'}[5m]))",
+          "legendFormat": "ingestion"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, rate(hr_pipeline_bge_inference_duration_seconds_bucket{call_site='retrieve'}[5m]))",
+          "legendFormat": "retrieve"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, rate(hr_pipeline_bge_inference_duration_seconds_bucket{call_site='rerank'}[5m]))",
+          "legendFormat": "rerank (DTW)"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2 } } }
+    },
+
+    {
+      "id": 42,
+      "type": "timeseries",
+      "title": "Ingestion queue depth",
+      "gridPos": { "x": 16, "y": 48, "w": 8, "h": 8 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "hr_pipeline_queue_depth",
+        "legendFormat": "queue depth"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "lineWidth": 2 },
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 20 },
+            { "color": "red", "value": 50 }
+          ]}
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+# prometheus.yml
+#
+# Scrapes four targets:
+#   hr-pipeline-app  — custom business metrics via /api/v1/metrics
+#   qdrant           — native Qdrant metrics (vector ops, memory)
+#   redis            — Redis metrics via redis_exporter sidecar
+#   cadvisor         — Docker container CPU / memory / network
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    project: "hr-pipeline"
+    env:     "local"
+
+scrape_configs:
+
+  - job_name: "hr-pipeline-app"
+    static_configs:
+      - targets: ["app:8000"]
+    metrics_path: /api/v1/metrics
+    scrape_interval: 10s
+
+  - job_name: "qdrant"
+    static_configs:
+      - targets: ["qdrant:6333"]
+    metrics_path: /metrics
+
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

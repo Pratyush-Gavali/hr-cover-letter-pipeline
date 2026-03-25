@@ -1,0 +1,16 @@
+# grafana/provisioning/datasources/prometheus.yml
+#
+# Auto-provisions Prometheus as the default datasource.
+# Grafana reads this on startup — no manual UI setup needed.
+
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "15s"
+      httpMethod: POST
