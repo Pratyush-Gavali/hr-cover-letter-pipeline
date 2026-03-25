@@ -34,23 +34,23 @@ def _get(path: str, **kwargs) -> dict:
 
 def seed_jd(job_id: str, jd_text: str) -> str:
     if not job_id.strip():
-        return "⚠️ Please enter a Job ID."
+        return "Please enter a Job ID."
     if not jd_text.strip():
-        return "⚠️ Please paste the job description."
+        return "Please paste the job description."
     try:
         data = _post(f"/jd/{job_id.strip()}", json={"jd_text": jd_text.strip()})
-        return f"✅ Job description seeded for **{data['job_id']}** ({data['length']} characters)."
+        return f"Job description saved for **{data['job_id']}** ({data['length']} characters)."
     except Exception as e:
-        return f"❌ Error: {e}"
+        return f"Error: {e}"
 
 
 # ── Tab 2: Upload ──────────────────────────────────────────────────────────────
 
 def upload_cover_letter(job_id: str, file) -> tuple[str, list]:
     if not job_id.strip():
-        return "⚠️ Please enter a Job ID.", []
+        return "Please enter a Job ID.", []
     if file is None:
-        return "⚠️ Please upload a file.", []
+        return "Please upload a file.", []
 
     mime_map = {
         ".pdf":  "application/pdf",
@@ -67,14 +67,14 @@ def upload_cover_letter(job_id: str, file) -> tuple[str, list]:
                 files={"file": (os.path.basename(file.name), f, mime)},
             )
 
+        ai_flag = "Possible AI-written" if data["ai_probability"] > 0.5 else "Likely human-written"
         summary = (
-            f"✅ **Uploaded successfully**\n\n"
+            f"**Analysis complete**\n\n"
             f"- Applicant ID: `{data['applicant_id']}`\n"
             f"- Chunks extracted: **{data['chunk_count']}**\n"
             f"- PII entities masked: **{data['entity_count']}**\n"
             f"- JD match score: **{data['jd_match_score']:.3f}**\n"
-            f"- AI probability: **{data['ai_probability']:.3f}** "
-            f"({'⚠️ Possible AI-written' if data['ai_probability'] > 0.5 else '✅ Likely human-written'})\n"
+            f"- AI probability: **{data['ai_probability']:.3f}** ({ai_flag})\n"
         )
 
         scores_table = [[
@@ -88,14 +88,14 @@ def upload_cover_letter(job_id: str, file) -> tuple[str, list]:
         return summary, scores_table
 
     except Exception as e:
-        return f"❌ Error: {e}", []
+        return f"Error: {e}", []
 
 
 # ── Tab 3: Applicants ──────────────────────────────────────────────────────────
 
 def list_applicants(job_id: str) -> tuple[list, str]:
     if not job_id.strip():
-        return [], "⚠️ Please enter a Job ID."
+        return [], "Please enter a Job ID."
     try:
         data = _get(f"/applicants/{job_id.strip()}")
         applicants = data.get("applicants", [])
@@ -106,7 +106,7 @@ def list_applicants(job_id: str) -> tuple[list, str]:
         for a in applicants:
             ai_p = a.get("ai_probability") or 0.0
             jd_m = a.get("jd_match_score") or 0.0
-            flag = "⚠️ AI?" if ai_p > 0.5 else "✅ Human"
+            flag = "Review — possible AI-written" if ai_p > 0.5 else "Human-written"
             rows.append([
                 a["applicant_id"],
                 f"{jd_m:.3f}",
@@ -116,9 +116,9 @@ def list_applicants(job_id: str) -> tuple[list, str]:
                 a.get("blob_path", ""),
             ])
 
-        return rows, f"Found **{len(applicants)}** applicant(s) for job `{job_id}`."
+        return rows, f"**{len(applicants)}** applicant(s) found for job `{job_id}`."
     except Exception as e:
-        return [], f"❌ Error: {e}"
+        return [], f"Error: {e}"
 
 
 # ── Tab 4: HR Query ────────────────────────────────────────────────────────────
@@ -130,9 +130,9 @@ def run_query(
     min_match_score: float,
 ) -> tuple[str, list]:
     if not job_id.strip():
-        return "⚠️ Please enter a Job ID.", []
+        return "Please enter a Job ID.", []
     if not prompt.strip():
-        return "⚠️ Please enter a query.", []
+        return "Please enter a query.", []
     try:
         data = _post("/query", json={
             "prompt": prompt.strip(),
@@ -141,7 +141,7 @@ def run_query(
             "min_match_score": min_match_score,
         })
 
-        response_md = f"### Response\n\n{data['response']}"
+        response_md = f"### Result\n\n{data['response']}"
 
         candidates = data.get("top_candidates", [])
         rows = []
@@ -152,58 +152,62 @@ def run_query(
                 f"{c.get('jd_match_score', 0):.3f}",
                 f"{ai_p:.3f}",
                 f"{c.get('rerank_score', 0):.3f}",
-                "⚠️ AI?" if ai_p > 0.5 else "✅ Human",
-                (c.get("chunk_text") or "")[:120] + "…",
+                "Review — possible AI-written" if ai_p > 0.5 else "Human-written",
+                (c.get("chunk_text") or "")[:120] + "...",
             ])
 
         return response_md, rows
     except Exception as e:
-        return f"❌ Error: {e}", []
+        return f"Error: {e}", []
 
 
 # ── Layout ─────────────────────────────────────────────────────────────────────
 
-with gr.Blocks(title="HR Cover Letter Intelligence Pipeline") as demo:
+with gr.Blocks(title="Cover Letter Intelligence — HR Portal") as demo:
 
     gr.Markdown(
         """
-        # 🧠 HR Cover Letter Intelligence Pipeline
-        Semantic Velocity Analysis · BGE-M3 Hybrid Search · PII Masking · AI Authorship Detection
+        # Cover Letter Intelligence Portal
+        Semantic matching, PII masking, and AI authorship analysis for talent acquisition.
         """
     )
 
     with gr.Tabs():
 
         # ── Tab 1: Job Setup ───────────────────────────────────────────────────
-        with gr.Tab("📋 Job Setup"):
-            gr.Markdown("Seed a job description so the SVA engine can score cover letters against it.")
-            with gr.Row():
-                jd_job_id = gr.Textbox(label="Job ID", placeholder="e.g. job_ba_pnbank", scale=1)
+        with gr.Tab("Job Setup"):
+            gr.Markdown(
+                "Register a job description before uploading cover letters. "
+                "The analysis engine uses this to score each applicant's relevance."
+            )
+            jd_job_id = gr.Textbox(label="Job ID", placeholder="e.g. job_ba_pnbank")
             jd_text = gr.Textbox(
                 label="Job Description",
-                placeholder="Paste the full job description here…",
+                placeholder="Paste the full job description here.",
                 lines=15,
             )
-            jd_btn = gr.Button("Seed Job Description", variant="primary")
+            jd_btn = gr.Button("Save Job Description", variant="primary")
             jd_status = gr.Markdown()
 
             jd_btn.click(seed_jd, inputs=[jd_job_id, jd_text], outputs=jd_status)
 
         # ── Tab 2: Upload ──────────────────────────────────────────────────────
-        with gr.Tab("📤 Upload Cover Letter"):
-            gr.Markdown("Upload a PDF, DOCX, or TXT cover letter. SVA scores are computed instantly.")
-            with gr.Row():
-                upload_job_id = gr.Textbox(label="Job ID", placeholder="e.g. job_ba_pnbank", scale=1)
+        with gr.Tab("Upload Cover Letter"):
+            gr.Markdown(
+                "Upload a cover letter to run full pipeline analysis: "
+                "text extraction, PII masking, JD matching, and authorship scoring."
+            )
+            upload_job_id = gr.Textbox(label="Job ID", placeholder="e.g. job_ba_pnbank")
             upload_file = gr.File(
-                label="Cover Letter (PDF / DOCX / TXT)",
+                label="Cover Letter (PDF, DOCX, or TXT)",
                 file_types=[".pdf", ".docx", ".txt"],
             )
-            upload_btn = gr.Button("Upload & Analyse", variant="primary")
+            upload_btn = gr.Button("Upload and Analyse", variant="primary")
             upload_status = gr.Markdown()
             upload_table = gr.Dataframe(
-                headers=["Applicant ID", "JD Match", "P(AI)", "Human Conf.", "Chunks", "PII Entities"],
+                headers=["Applicant ID", "JD Match", "AI Probability", "Human Confidence", "Chunks", "PII Entities Masked"],
                 datatype=["str", "str", "str", "str", "str", "str"],
-                label="SVA Scores",
+                label="Analysis Results",
                 interactive=False,
             )
 
@@ -214,14 +218,17 @@ with gr.Blocks(title="HR Cover Letter Intelligence Pipeline") as demo:
             )
 
         # ── Tab 3: Applicants ──────────────────────────────────────────────────
-        with gr.Tab("👥 Applicant Dashboard"):
-            gr.Markdown("Browse all indexed applicants for a job, sorted by JD match score.")
+        with gr.Tab("Applicant Overview"):
+            gr.Markdown(
+                "View all applicants indexed for a job posting, "
+                "ranked by JD match score with authorship assessment."
+            )
             with gr.Row():
-                appl_job_id = gr.Textbox(label="Job ID", placeholder="e.g. job_ba_pnbank", scale=2)
+                appl_job_id = gr.Textbox(label="Job ID", placeholder="e.g. job_ba_pnbank", scale=3)
                 appl_btn = gr.Button("Load Applicants", variant="primary", scale=1)
             appl_status = gr.Markdown()
             appl_table = gr.Dataframe(
-                headers=["Applicant ID", "JD Match", "P(AI)", "Human Conf.", "Auth. Flag", "Blob Path"],
+                headers=["Applicant ID", "JD Match", "AI Probability", "Human Confidence", "Authorship Assessment", "Document Path"],
                 datatype=["str", "str", "str", "str", "str", "str"],
                 label="Applicants",
                 interactive=False,
@@ -234,33 +241,33 @@ with gr.Blocks(title="HR Cover Letter Intelligence Pipeline") as demo:
             )
 
         # ── Tab 4: HR Query ────────────────────────────────────────────────────
-        with gr.Tab("🔍 HR Talent Query"):
+        with gr.Tab("Talent Search"):
             gr.Markdown(
-                "Ask a natural language question. The RAG pipeline retrieves, reranks, "
-                "and synthesises a grounded answer from masked cover letter excerpts."
+                "Search for candidates using natural language. "
+                "Results are retrieved from indexed cover letters and ranked by relevance. "
+                "Use the filters to exclude likely AI-written submissions or set a minimum match threshold."
             )
-            with gr.Row():
-                query_job_id = gr.Textbox(label="Job ID", placeholder="e.g. job_ba_pnbank", scale=1)
+            query_job_id = gr.Textbox(label="Job ID", placeholder="e.g. job_ba_pnbank")
             query_prompt = gr.Textbox(
-                label="Query",
-                placeholder="e.g. Who has the strongest Agile and compliance experience?",
+                label="Search Query",
+                placeholder="e.g. Which candidates have regulatory compliance and Agile experience?",
                 lines=3,
             )
             with gr.Row():
                 ai_prob_slider = gr.Slider(
                     0.0, 1.0, value=1.0, step=0.05,
-                    label="Max AI Probability (lower = prefer human-written)",
+                    label="Maximum AI Probability (reduce to filter out AI-written submissions)",
                 )
                 match_slider = gr.Slider(
                     0.0, 1.0, value=0.0, step=0.05,
-                    label="Min JD Match Score",
+                    label="Minimum JD Match Score",
                 )
-            query_btn = gr.Button("Run Query", variant="primary")
-            query_response = gr.Markdown(label="LLM Response")
+            query_btn = gr.Button("Search", variant="primary")
+            query_response = gr.Markdown(label="Summary")
             query_table = gr.Dataframe(
-                headers=["Applicant ID", "JD Match", "P(AI)", "Rerank Score", "Auth. Flag", "Top Excerpt"],
+                headers=["Applicant ID", "JD Match", "AI Probability", "Rerank Score", "Authorship Assessment", "Relevant Excerpt"],
                 datatype=["str", "str", "str", "str", "str", "str"],
-                label="Top Candidates",
+                label="Ranked Candidates",
                 interactive=False,
                 wrap=True,
             )
