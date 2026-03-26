@@ -47,3 +47,6 @@ numpy==2.1.0                  # 1.26.x has no Python 3.13 wheel
 scikit-learn==1.7.0           # 1.5.x / 1.6.x have no Python 3.13 wheel
 joblib==1.4.0                 # Model serialisation
 python-multipart==0.0.20
+
+# UI
+gradio==6.10.0
