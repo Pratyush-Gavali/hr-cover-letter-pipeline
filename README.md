@@ -87,10 +87,19 @@ export LLM_PROVIDER=stub
 
 | `LLM_PROVIDER` | Additional env vars required |
 |---|---|
-| `stub` | None — returns a fixed placeholder response |
+| `ollama` | Install Ollama, run `ollama pull llama3.1:8b`; optionally set `OLLAMA_BASE_URL` (default: `http://localhost:11434`) |
+| `stub` | None — returns a fixed placeholder response, no API key required |
 | `openai` | `OPENAI_API_KEY` |
-| `ollama` | Run `ollama pull llama3.1:8b` first; optionally set `OLLAMA_BASE_URL` |
 | `azure` | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT` |
+
+**Recommended for local development:** `ollama` — fully offline, no API costs.
+
+Install Ollama on macOS:
+```bash
+brew install ollama
+brew services start ollama
+ollama pull llama3.1:8b
+```
 
 ### 4. Start the API server
 

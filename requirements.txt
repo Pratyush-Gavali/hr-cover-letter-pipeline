@@ -50,3 +50,6 @@ python-multipart==0.0.20
 
 # UI
 gradio==6.10.0
+
+# Local LLM (Ollama backend)
+langchain-ollama==1.0.1
